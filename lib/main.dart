@@ -1,25 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'services/database_service.dart';
 import 'providers/expense_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
-import 'models/transcation_model.dart';
-import 'models/expense_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Hive database
   await DatabaseService.init();
-  await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(0)) {
-    Hive.registerAdapter(TransactionAdapter());
-  }
-  
-  await Hive.openBox<ExpenseModel>('expenses');
-  
+
+  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -35,17 +28,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ExpenseProvider()..initialize(),
-      child: MaterialApp(
-        title: 'Expense Tracker',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF0f1419),
-          primaryColor: const Color(0xFF4ecdc4),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(
+          create: (context) => ExpenseProvider()..initialize(),
         ),
-        home: const SplashScreen(),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Expense Tracker',
+            debugShowCheckedModeBanner: false,
+            theme:ThemeProvider.mintlightTheme,
+            darkTheme: ThemeProvider.darkTheme,
+            themeMode: themeProvider.isDarkMode
+                ? ThemeMode.dark
+                : ThemeMode.light,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }

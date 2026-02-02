@@ -5,6 +5,8 @@ import 'dart:ui';
 import 'add_expense.dart';
 import '../models/expense_model.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_application_1/providers/theme_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -142,6 +144,8 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeProvider>();
+
     final remaining = totalBudget - totalExpenses;
     final percentageUsed = (totalExpenses / totalBudget * 100).clamp(
       0.0,
@@ -151,9 +155,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     final isCritical = percentageUsed >= 90;
 
     return Scaffold(
-      backgroundColor: isDarkMode
-          ? const Color(0xFF0f1419)
-          : const Color(0xFFf5f7fa),
+      backgroundColor: theme.backgroundColor,
       body: Stack(
         children: [
           // Animated background gradient
@@ -213,22 +215,14 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     return AnimatedBuilder(
       animation: _shimmerController,
       builder: (context, child) {
+        final theme = context.watch<ThemeProvider>();
+
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: isDarkMode
-                  ? const [
-                      Color(0xFF0f1419),
-                      Color(0xFF1a1f2e),
-                      Color(0xFF0f1419),
-                    ]
-                  : const [
-                      Color(0xFFf5f7fa),
-                      Color(0xFFe8ecf3),
-                      Color(0xFFf5f7fa),
-                    ],
+              colors: theme.backgroundGradient,
               stops: [0.0, _shimmerController.value, 1.0],
             ),
           ),
@@ -262,9 +256,11 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         child: Text(
                           'January 2026',
                           style: TextStyle(
-                            color: isDarkMode
-                                ? Colors.white.withValues(alpha: 0.5)
-                                : Colors.black.withValues(alpha: 0.5),
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium!
+                                .color!
+                                .withValues(alpha: 0.5),
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             letterSpacing: 1,
@@ -279,19 +275,33 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         ).animate(_fadeAnimation),
                         child: Text(
                           'My Wallet',
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.white : Colors.black,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1.5,
-                            height: 1.2,
-                          ),
+                          style: Theme.of(context).textTheme.displayLarge!
+                              .copyWith(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.5,
+                                height: 1.2,
+                              ),
                         ),
                       ),
                     ],
                   ),
+
+                  /// 🔥 RIGHT ACTIONS
                   Row(
                     children: [
+                      // 🌗 THEME TOGGLE
+                      _buildIconButton(
+                        context.watch<ThemeProvider>().isDarkMode
+                            ? Icons.light_mode_rounded
+                            : Icons.dark_mode_rounded,
+                        () {
+                          context.read<ThemeProvider>().toggleTheme();
+                          _triggerHaptic();
+                        },
+                      ),
+                      const SizedBox(width: 12),
+
                       _buildIconButton(Icons.search, () {
                         _triggerHaptic();
                       }),
@@ -315,54 +325,53 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     VoidCallback onTap, {
     bool hasNotification = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? Colors.white.withValues(alpha: 0.05)
-              : Colors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDarkMode
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isDarkMode ? Colors.white : Colors.black,
-              size: 22,
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: theme.glassmorphicColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.borderColor, width: 1),
             ),
-            if (hasNotification)
-              Positioned(
-                right: 10,
-                top: 10,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFff6b6b),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFff6b6b).withValues(alpha: 0.5),
-                        blurRadius: 4,
-                        spreadRadius: 1,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(icon, color: theme.textColor, size: 22),
+                if (hasNotification)
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.error, // 🔥 accent-safe
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.error.withValues(alpha: 0.5),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -382,258 +391,220 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             child: child,
           );
         },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDarkMode
-                      ? [
-                          Colors.white.withValues(alpha: 0.08),
-                          Colors.white.withValues(alpha: 0.03),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.9),
-                          Colors.white.withValues(alpha: 0.6),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: isDarkMode
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.white.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 30,
-                    offset: const Offset(0, 15),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Circular Progress with center text
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 220,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  (isCritical
-                                          ? const Color(0xFFff6b6b)
-                                          : isWarning
-                                          ? const Color(0xFFffd93d)
-                                          : const Color(0xFF4ecdc4))
-                                      .withValues(alpha: 0.3),
-                              blurRadius: 40,
-                              spreadRadius: 10,
-                            ),
-                          ],
-                        ),
+        child: Builder(
+          builder: (context) {
+            final theme = context.read<ThemeProvider>();
+            final scheme = Theme.of(context).colorScheme;
+
+            final Color statusColor = isCritical
+                ? scheme.error
+                : isWarning
+                ? scheme.secondary
+                : scheme.primary;
+
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: theme.glassmorphicGradient,
+                    ),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: theme.borderColor, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
                       ),
-                      SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: isWarning ? _pulseAnimation.value : 1.0,
-                              child: CustomPaint(
-                                painter: CircularProgressPainter(
-                                  progress:
-                                      percentageUsed /
-                                      100 *
-                                      _fadeAnimation.value,
-                                  backgroundColor: isDarkMode
-                                      ? Colors.white.withValues(alpha: 0.1)
-                                      : Colors.black.withValues(alpha: 0.1),
-                                  progressColor: isCritical
-                                      ? const Color(0xFFff6b6b)
-                                      : isWarning
-                                      ? const Color(0xFFffd93d)
-                                      : const Color(0xFF4ecdc4),
-                                  strokeWidth: 14,
-                                ),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '₹${remaining.toStringAsFixed(0)}',
-                                        style: TextStyle(
-                                          color: isCritical
-                                              ? const Color(0xFFff6b6b)
-                                              : isWarning
-                                              ? const Color(0xFFffd93d)
-                                              : const Color(0xFF4ecdc4),
-                                          fontSize: 38,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: -2,
-                                          height: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Remaining',
-                                        style: TextStyle(
-                                          color: isDarkMode
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.5,
-                                                )
-                                              : Colors.black.withValues(
-                                                  alpha: 0.5,
-                                                ),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              (isCritical
-                                                      ? const Color(0xFFff6b6b)
-                                                      : isWarning
-                                                      ? const Color(0xFFffd93d)
-                                                      : const Color(0xFF4ecdc4))
-                                                  .withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Circular Progress
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 220,
+                            height: 220,
+                         
+                          ),
+                          SizedBox(
+                            width: 200,
+                            height: 200,
+                            child: AnimatedBuilder(
+                              animation: _pulseAnimation,
+                              builder: (context, child) {
+                                return Transform.scale(
+                                  scale: isWarning
+                                      ? _pulseAnimation.value
+                                      : 1.0,
+                                  child: CustomPaint(
+                                    painter: CircularProgressPainter(
+                                      progress:
+                                          percentageUsed /
+                                          100 *
+                                          _fadeAnimation.value,
+                                      backgroundColor: theme.borderColor
+                                          .withValues(alpha: 0.5),
+                                      progressColor: statusColor,
+                                      strokeWidth: 14,
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '₹${remaining.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontSize: 38,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -2,
+                                              height: 1,
+                                            ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          '${percentageUsed.toStringAsFixed(1)}% Used',
-                                          style: TextStyle(
-                                            color: isCritical
-                                                ? const Color(0xFFff6b6b)
-                                                : isWarning
-                                                ? const Color(0xFFffd93d)
-                                                : const Color(0xFF4ecdc4),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Remaining',
+                                            style: TextStyle(
+                                              color: theme.secondaryTextColor,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 1,
+                                            ),
                                           ),
-                                        ),
+                                          const SizedBox(height: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              '${percentageUsed.toStringAsFixed(1)}% Used',
+                                              style: TextStyle(
+                                                color: statusColor,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Stats
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatColumn(
+                              'Monthly Budget',
+                              '₹${totalBudget.toStringAsFixed(0)}',
+                              Icons.account_balance_wallet_outlined,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 50,
+                            color: theme.borderColor,
+                          ),
+                          Expanded(
+                            child: _buildStatColumn(
+                              'Total Spent',
+                              '₹${totalExpenses.toStringAsFixed(0)}',
+                              Icons.shopping_bag_outlined,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  // Budget Stats
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatColumn(
-                          'Monthly Budget',
-                          '₹${totalBudget.toStringAsFixed(0)}',
-                          Icons.account_balance_wallet_outlined,
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 50,
-                        color: isDarkMode
-                            ? Colors.white.withValues(alpha: 0.1)
-                            : Colors.black.withValues(alpha: 0.1),
-                      ),
-                      Expanded(
-                        child: _buildStatColumn(
-                          'Total Spent',
-                          '₹${totalExpenses.toStringAsFixed(0)}',
-                          Icons.shopping_bag_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
   Widget _buildStatColumn(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          size: 24,
-          color: isDarkMode
-              ? Colors.white.withValues(alpha: 0.4)
-              : Colors.black.withValues(alpha: 0.4),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            color: isDarkMode ? Colors.white : Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: isDarkMode
-                ? Colors.white.withValues(alpha: 0.5)
-                : Colors.black.withValues(alpha: 0.5),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return Column(
+          children: [
+            Icon(icon, size: 24, color: theme.secondaryTextColor),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildQuickActions() {
+    final scheme = Theme.of(context).colorScheme;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     final actions = [
       {
         'icon': Icons.add_circle_outline,
         'label': 'Add',
-        'color': const Color(0xFF4ecdc4),
+        'color': scheme.primary,
       },
       {
         'icon': Icons.bar_chart_rounded,
         'label': 'Stats',
-        'color': const Color(0xFFa78bfa),
+        'color': themeProvider.warningColor,
       },
       {
         'icon': Icons.category_outlined,
         'label': 'Categories',
-        'color': const Color(0xFFffd93d),
+        'color': scheme.secondary,
       },
       {
         'icon': Icons.settings_outlined,
         'label': 'Settings',
-        'color': const Color(0xFFff6b6b),
+        'color': scheme.error,
       },
     ];
 
@@ -660,41 +631,39 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
   }
 
   Widget _buildQuickActionChip(IconData icon, String label, Color color) {
-    return GestureDetector(
-      onTap: _triggerHaptic,
-      child: Container(
-        width: 80,
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? Colors.white.withValues(alpha: 0.05)
-              : Colors.white.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 20),
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return GestureDetector(
+          onTap: _triggerHaptic,
+          child: Container(
+            width: 80,
+            decoration: BoxDecoration(
+              color: theme.glassmorphicColor,
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  child: Icon(icon, color: color, size: 35),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -703,29 +672,24 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     final projectedTotal = dailyAvg * 30;
     final willExceed = projectedTotal > totalBudget;
 
+    final scheme = Theme.of(context).colorScheme;
+    final theme = context.read<ThemeProvider>();
+
+    final Color accentColor = willExceed ? scheme.error : scheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: willExceed
-              ? [
-                  const Color(0xFFff6b6b).withValues(alpha: 0.15),
-                  const Color(0xFFff6b6b).withValues(alpha: 0.05),
-                ]
-              : [
-                  const Color(0xFF4ecdc4).withValues(alpha: 0.15),
-                  const Color(0xFF4ecdc4).withValues(alpha: 0.05),
-                ],
+          colors: [
+            accentColor.withValues(alpha: 0.15),
+            accentColor.withValues(alpha: 0.05),
+          ],
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: willExceed
-              ? const Color(0xFFff6b6b).withValues(alpha: 0.3)
-              : const Color(0xFF4ecdc4).withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         children: [
@@ -733,18 +697,14 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: willExceed
-                  ? const Color(0xFFff6b6b).withValues(alpha: 0.2)
-                  : const Color(0xFF4ecdc4).withValues(alpha: 0.2),
+              color: accentColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               willExceed
                   ? Icons.warning_amber_rounded
                   : Icons.lightbulb_outline,
-              color: willExceed
-                  ? const Color(0xFFff6b6b)
-                  : const Color(0xFF4ecdc4),
+              color: accentColor,
               size: 24,
             ),
           ),
@@ -756,9 +716,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                 Text(
                   willExceed ? 'Budget Alert!' : 'Smart Insight',
                   style: TextStyle(
-                    color: willExceed
-                        ? const Color(0xFFff6b6b)
-                        : const Color(0xFF4ecdc4),
+                    color: accentColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
@@ -769,12 +727,10 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                   willExceed
                       ? 'At this rate, you\'ll exceed budget by ₹${(projectedTotal - totalBudget).toStringAsFixed(0)}'
                       : 'Great job! You\'re on track to save ₹${(totalBudget - projectedTotal).toStringAsFixed(0)}',
-                  style: TextStyle(
-                    color: isDarkMode
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : Colors.black.withValues(alpha: 0.7),
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                     fontSize: 13,
                     height: 1.4,
+                    color: theme.secondaryTextColor,
                   ),
                 ),
               ],
@@ -793,8 +749,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text(
             'Spending by Category',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white : Colors.black,
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
               fontSize: 20,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
@@ -812,92 +767,90 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     final double budget = category['budget'] as double;
     final percentage = (spent / budget * 100).clamp(0.0, 100.0);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDarkMode
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.glassmorphicColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.borderColor, width: 1),
+          ),
+          child: Column(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: (category['color'] as Color).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    category['icon'] as String,
-                    style: const TextStyle(fontSize: 24),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: (category['color'] as Color).withValues(
+                        alpha: 0.15,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Text(
+                        category['icon'] as String,
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category['name'] as String,
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category['name'] as String,
+                          style: Theme.of(context).textTheme.bodyLarge!
+                              .copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${spent.toStringAsFixed(0)} of ₹${budget.toStringAsFixed(0)}',
+                          style: Theme.of(context).textTheme.bodyMedium!
+                              .copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: theme.secondaryTextColor,
+                              ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '₹${spent.toStringAsFixed(0)} of ₹${budget.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: isDarkMode
-                            ? Colors.white.withValues(alpha: 0.5)
-                            : Colors.black.withValues(alpha: 0.5),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  Text(
+                    '${percentage.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      color: category['color'] as Color,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Text(
-                '${percentage.toStringAsFixed(0)}%',
-                style: TextStyle(
-                  color: category['color'] as Color,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: percentage / 100,
+                  backgroundColor: theme.borderColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    category['color'] as Color,
+                  ),
+                  minHeight: 6,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: percentage / 100,
-              backgroundColor: isDarkMode
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                category['color'] as Color,
-              ),
-              minHeight: 6,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -912,8 +865,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 'Recent Activity',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white : Colors.black,
+                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
@@ -922,10 +874,10 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             ),
             TextButton(
               onPressed: _triggerHaptic,
-              child: const Text(
+              child: Text(
                 'View All',
                 style: TextStyle(
-                  color: Color(0xFF4ecdc4),
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -940,7 +892,12 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             final expenses = box.values.toList().cast<ExpenseModel>();
 
             if (expenses.isEmpty) {
-              return const Center(child: Text("No recent transactions"));
+              return Center(
+                child: Text(
+                  "No recent transactions",
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              );
             }
 
             // Sort by date (newest first) and take top 5
@@ -959,106 +916,112 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
   }
 
   Widget _buildTransactionItem(ExpenseModel e) {
-    // final int amount = transaction['amount'] as int;
-    // final isExpense = amount < 0;
-    final categoryStyle = _getCategoryStyle(e.category);
+    final categoryStyle = _getCategoryStyle(context, e.category);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDarkMode
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  (categoryStyle['color'] as Color).withValues(alpha: 0.3),
-                  (categoryStyle['color'] as Color).withValues(alpha: 0.1),
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+        final scheme = Theme.of(context).colorScheme;
 
-                ],
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.glassmorphicColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.borderColor, width: 1),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      (categoryStyle['color'] as Color).withValues(alpha: 0.3),
+                      (categoryStyle['color'] as Color).withValues(alpha: 0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  categoryStyle['text'],
+                  style: const TextStyle(fontSize: 24),
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-                categoryStyle['text'],
-                style:const TextStyle(fontSize: 24), 
-              )
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  e.title,
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.white : Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      e.title,
+                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(e.date),
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: theme.secondaryTextColor,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatDate(e.date),
-                  style: TextStyle(
-                    color: isDarkMode
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : Colors.black.withValues(alpha: 0.5),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+              ),
+              Text(
+                '-₹${e.amount.abs().toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: scheme.error,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Text(
-            '-\₹${e.amount.abs().toStringAsFixed(2)}',
-            style: TextStyle(
-              color: const Color(0xFFff6b6b),
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Map<String, dynamic> _getCategoryStyle(String category) {
+  Map<String, dynamic> _getCategoryStyle(
+    BuildContext context,
+    String category,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+
     switch (category) {
       case 'Food':
-        return {'text': '🍔', 'color': const Color(0xFFff6b6b)};
+        return {'text': '🍔', 'color': scheme.error};
+
       case 'Transport':
-        return {'text': '🚗', 'color': const Color(0xFF4ecdc4)};
+        return {'text': '🚗', 'color': scheme.primary};
+
       case 'Shopping':
-        return {'text': '🛍️', 'color': Colors.orange};
+        return {'text': '🛍️', 'color': scheme.secondary};
+
       case 'Bills':
-        return {'text': '📝', 'color': Colors.yellow};
+        return {'text': '📝', 'color': scheme.tertiary};
+
       case 'Entertainment':
-        return {'text': '🎮', 'color': Colors.purple};
+        return {'text': '🎮', 'color': scheme.secondaryContainer};
+
       case 'Health':
-        return {'text': '💊', 'color': Colors.red};
+        return {'text': '💊', 'color': scheme.errorContainer};
+
       case 'Education':
-        return {'text': '📚', 'color': Colors.green};
+        return {'text': '📚', 'color': scheme.primaryContainer};
+
       default:
-        return {'text': '💰', 'color': Colors.blue};
+        return {'text': '💰', 'color': scheme.primary};
     }
   }
 
@@ -1074,68 +1037,76 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
       bottom: 30,
       right: 20,
       left: 20,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
-          );
-          _triggerHaptic();
-        },
-        child: AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: 1.0 + (_pulseController.value * 0.02),
-              child: Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF4ecdc4), Color(0xFF44a4a1)],
+      child: Builder(
+        builder: (context) {
+          final scheme = Theme.of(context).colorScheme;
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddExpenseScreen(),
+                ),
+              );
+              _triggerHaptic();
+            },
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: 1.0 + (_pulseController.value * 0.02),
+                  child: Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [scheme.primary, scheme.primaryContainer],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: scheme.onPrimary.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: scheme.onPrimary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Add Expense',
+                          style: TextStyle(
+                            color: scheme.onPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF4ecdc4).withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Add Expense',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
