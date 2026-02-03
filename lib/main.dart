@@ -13,14 +13,6 @@ void main() async {
   // Initialize Hive database
   await DatabaseService.init();
 
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
-
   runApp(const MyApp());
 }
 
@@ -38,6 +30,15 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
+          // Set system UI overlay style based on theme
+          SystemChrome.setSystemUIOverlayStyle(
+            SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness:
+                  themeProvider.isDarkMode ? Brightness.light : Brightness.dark,
+            ),
+          );
+
           return MaterialApp(
             title: 'Expense Tracker',
             debugShowCheckedModeBanner: false,
