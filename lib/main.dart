@@ -5,6 +5,7 @@ import 'services/database_service.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
+import 'models/expense_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
