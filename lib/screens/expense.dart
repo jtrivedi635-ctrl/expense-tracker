@@ -10,6 +10,7 @@ import '../services/pdf_service.dart';
 import '../models/expense_model.dart';
 import 'add_expense.dart';
 import '../providers/theme_provider.dart';
+import 'settings_screen.dart';
 
 class PremiumExpenseTracker extends StatefulWidget {
   const PremiumExpenseTracker({super.key});
@@ -200,6 +201,17 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                             : Icons.dark_mode_rounded,
                         () {
                           context.read<ThemeProvider>().toggleTheme();
+                          _triggerHaptic();
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      _buildIconButton(
+                        Icons.settings_outlined,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                          );
                           _triggerHaptic();
                         },
                       ),
