@@ -72,7 +72,12 @@ class ThemeProvider extends ChangeNotifier {
   // Mint Light Theme (from your color palette)
   static final ThemeData mintlightTheme = ThemeData(
     brightness: Brightness.light,
-    scaffoldBackgroundColor: const Color.fromARGB(255, 168, 203, 225), // Background
+    scaffoldBackgroundColor: const Color.fromARGB(
+      255,
+      168,
+      203,
+      225,
+    ), // Background
     primaryColor: const Color(0xFF3ecfc0), // Primary
     colorScheme: const ColorScheme.light(
       primary: Color(0xFF3ecfc0), // Primary
@@ -86,7 +91,9 @@ class ThemeProvider extends ChangeNotifier {
     ),
     cardColor: const Color(0xFFffffff), // Card
     dividerColor: const Color(0x14000000), // Border: #00000014
-    iconTheme: const IconThemeData(color: Color(0xFF4b4f54)), // Secondary Foreground
+    iconTheme: const IconThemeData(
+      color: Color(0xFF4b4f54),
+    ), // Secondary Foreground
     textTheme: const TextTheme(
       displayLarge: TextStyle(
         color: Color(0xFF0f1720), // Foreground
@@ -123,9 +130,7 @@ class ThemeProvider extends ChangeNotifier {
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF3ecfc0), // Primary
         foregroundColor: Colors.white, // Primary Foreground
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       ),
@@ -140,13 +145,13 @@ class ThemeProvider extends ChangeNotifier {
           width: 1,
         ),
       ),
-      shadowColor: Colors.black.withValues(alpha:  0.05),
+      shadowColor: Colors.black.withValues(alpha: 0.05),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFFffffff), // Input
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),  
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(
           color: Color(0x14000000), // Border
           width: 1,
@@ -184,13 +189,11 @@ class ThemeProvider extends ChangeNotifier {
       ? const Color(0xFF0f1419)
       : const Color(0xFFf3f6f8); // Background
 
-  Color get cardColor => _isDarkMode
-      ? const Color(0xFF1a1f2e)
-      : const Color(0xFFffffff); // Card
+  Color get cardColor =>
+      _isDarkMode ? const Color(0xFF1a1f2e) : const Color(0xFFffffff); // Card
 
-  Color get textColor => _isDarkMode
-      ? Colors.white
-      : const Color(0xFF0f1720); // Foreground
+  Color get textColor =>
+      _isDarkMode ? Colors.white : const Color(0xFF0f1720); // Foreground
 
   Color get secondaryTextColor => _isDarkMode
       ? Colors.white70
@@ -210,19 +213,19 @@ class ThemeProvider extends ChangeNotifier {
 
   Color get warningColor => _isDarkMode
       ? const Color(0xFFffd93d)
-      :  const Color(0xFFffd93d); // Warning Foreground
+      : const Color(0xFFffd93d); // Warning Foreground
 
   Color get warningBackgroundColor => _isDarkMode
       ? const Color(0xFF2e2a1a)
       : const Color(0xFFfff3e6); // Warning
 
   Color get borderColor => _isDarkMode
-      ? Colors.white.withValues(alpha:  0.1)
+      ? Colors.white.withValues(alpha: 0.1)
       : const Color(0x14000000); // Border: #00000014
 
   Color get glassmorphicColor => _isDarkMode
-      ? Colors.white.withValues(alpha:  0.05)
-      : Colors.white.withValues(alpha:  0.7);
+      ? Colors.white.withValues(alpha: 0.05)
+      : Colors.white.withValues(alpha: 0.7);
 
   // Gradient colors
   List<Color> get backgroundGradient => _isDarkMode
@@ -239,12 +242,12 @@ class ThemeProvider extends ChangeNotifier {
 
   List<Color> get glassmorphicGradient => _isDarkMode
       ? [
-          Colors.white.withValues(alpha:  0.08),
-          Colors.white.withValues(alpha:  0.03),
+          Colors.white.withValues(alpha: 0.08),
+          Colors.white.withValues(alpha: 0.03),
         ]
       : [
-          Colors.white.withValues(alpha:  0.9),
-          Colors.white.withValues(alpha:  0.6),
+          Colors.white.withValues(alpha: 0.9),
+          Colors.white.withValues(alpha: 0.6),
         ];
 
   // New helper methods for specific colors from your palette
@@ -252,9 +255,8 @@ class ThemeProvider extends ChangeNotifier {
       ? const Color(0xFF4ecdc4)
       : const Color(0xFF3ecfc0); // Primary
 
-  Color get primaryForegroundColor => _isDarkMode
-      ? Colors.white
-      : Colors.white; // Primary Foreground
+  Color get primaryForegroundColor =>
+      _isDarkMode ? Colors.white : Colors.white; // Primary Foreground
 
   Color get secondaryColor => _isDarkMode
       ? const Color(0xFFffd93d)
@@ -264,33 +266,27 @@ class ThemeProvider extends ChangeNotifier {
       ? Colors.white
       : const Color(0xFF4b4f54); // Secondary Foreground
 
-  Color get mutedColor => _isDarkMode
-      ? const Color(0xFF1a1f2e)
-      : const Color(0xFFf0f2f4); // Muted
+  Color get mutedColor =>
+      _isDarkMode ? const Color(0xFF1a1f2e) : const Color(0xFFf0f2f4); // Muted
 
   Color get mutedForegroundColor => _isDarkMode
       ? Colors.white70
       : const Color(0xFF9aa0a6); // Muted Foreground
 
-  Color get destructiveColor => _isDarkMode
-      ? const Color(0xFFff6b6b)
-      : const Color(0xFFffecef); // Destructive
+  Color get destructiveColor => const Color(0xFFff6b6b);// Destructive
 
   Color get destructiveForegroundColor => _isDarkMode
       ? Colors.white
       : const Color(0xFF9b2a2a); // Destructive Foreground
 
-  Color get accentBackgroundColor => _isDarkMode
-      ? const Color(0xFFffd93d)
-      : const Color(0xFFffd966); // Accent
+  Color get accentBackgroundColor =>
+      _isDarkMode ? const Color(0xFFffd93d) : const Color(0xFFffd966); // Accent
 
-  Color get accentForegroundColor => _isDarkMode
-      ? Colors.white
-      : const Color(0xFF3b2f00); // Accent Foreground
+  Color get accentForegroundColor =>
+      _isDarkMode ? Colors.white : const Color(0xFF3b2f00); // Accent Foreground
 
-  Color get cardForegroundColor => _isDarkMode
-      ? Colors.white
-      : const Color(0xFF0f1720); // Card Foreground
+  Color get cardForegroundColor =>
+      _isDarkMode ? Colors.white : const Color(0xFF0f1720); // Card Foreground
 
   Color get sidebarColor => _isDarkMode
       ? const Color(0xFF1a1f2e)
@@ -309,12 +305,11 @@ class ThemeProvider extends ChangeNotifier {
       : const Color(0xFF0f6b63); // Sidebar Primary Foreground
 
   // UI specific colors
-  Color get budgetCardColor => _isDarkMode
-      ? const Color(0xFF1a1f2e)
-      : const Color(0xFFffffff); // Card
+  Color get budgetCardColor =>
+      _isDarkMode ? const Color(0xFF1a1f2e) : const Color(0xFFffffff); // Card
 
   Color get progressBarBackground => _isDarkMode
-      ? Colors.white.withValues(alpha:  0.1)
+      ? Colors.white.withValues(alpha: 0.1)
       : const Color(0xFFf0f2f4); // Muted
 
   Color get progressBarFill => _isDarkMode
@@ -333,15 +328,13 @@ class ThemeProvider extends ChangeNotifier {
       ? const Color(0xFF4ecdc4)
       : const Color(0xFF3ecfc0); // Primary
 
-  Color get categoryCardColor => _isDarkMode
-      ? const Color(0xFF2D3748)
-      : const Color(0xFFffffff); // Card
+  Color get categoryCardColor =>
+      _isDarkMode ? const Color(0xFF2D3748) : const Color(0xFFffffff); // Card
 
   Color get dividerColor => _isDarkMode
-      ? Colors.white.withValues(alpha:  0.1)
+      ? Colors.white.withValues(alpha: 0.1)
       : const Color(0x14000000); // Border
 
-  Color get inputColor => _isDarkMode
-      ? const Color(0xFF1a1f2e)
-      : const Color(0xFFffffff); // Input
+  Color get inputColor =>
+      _isDarkMode ? const Color(0xFF1a1f2e) : const Color(0xFFffffff); // Input
 }

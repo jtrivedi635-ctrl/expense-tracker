@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
+// Ensure these imports match your project structure
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../providers/theme_provider.dart';
+import 'settings_screen.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key});
@@ -28,6 +31,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   bool _isExpense = true;
   bool _isLoading = false;
 
+  // Removed 'const' to allow flexibility, though colors are static vibrant hues
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Food', 'icon': '🍔', 'color': const Color(0xFFff6b6b)},
     {'name': 'Transport', 'icon': '🚗', 'color': const Color(0xFF4ecdc4)},
@@ -42,7 +46,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _formController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -53,15 +57,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       curve: Curves.easeOut,
     );
 
-    _formSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _formController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _formSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _formController, curve: Curves.easeOutCubic),
+        );
 
     _formController.forward();
   }
@@ -81,25 +80,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
   Future<void> _selectDate() async {
     _triggerHaptic();
+
+    final themeProvider = context.read<ThemeProvider>();
+    final baseTheme = Theme.of(context);
+    final scheme = baseTheme.colorScheme;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       builder: (context, child) {
+        // Dynamic DatePicker Theme
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF4ecdc4),
+          data: baseTheme.copyWith(
+            colorScheme: scheme.copyWith(
+              primary: themeProvider.primaryColor, // Selection color
               onPrimary: Colors.white,
-              surface: Color(0xFF1a1f2e),
-              onSurface: Colors.white,
+              surface: themeProvider.cardColor, // Background
+              onSurface: themeProvider.textColor, // Text
+            ),
+            dialogBackgroundColor: themeProvider.cardColor,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: themeProvider.primaryColor, // Button text
+              ),
             ),
           ),
           child: child!,
         );
       },
     );
+
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
@@ -114,8 +126,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       });
 
       _triggerHaptic();
-      
-      // Create expense model
+
       final expense = ExpenseModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
@@ -126,17 +137,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 
-      // Save to database via provider
       await context.read<ExpenseProvider>().addExpense(expense);
-      
+
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-
-        // Show success and go back
         _showSuccessDialog();
       }
     }
@@ -151,7 +159,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         isExpense: _isExpense,
         onDismiss: () {
           Navigator.pop(context);
-          Navigator.pop(context); // Go back to home
+          Navigator.pop(context);
         },
       ),
     );
@@ -159,33 +167,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.read<ThemeProvider>();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0f1419),
+      backgroundColor: theme.backgroundColor,
       body: Stack(
         children: [
           // Animated background
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0f1419),
-                  Color(0xFF1a1f2e),
-                  Color(0xFF0f1419),
-                ],
+                colors: theme.backgroundGradient,
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Column(
               children: [
-                // Custom app bar
                 _buildAppBar(),
-                
-                // Form content
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -199,7 +202,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildTypeSelector(),
                               const SizedBox(height: 32),
                               _buildAmountInput(),
                               const SizedBox(height: 32),
@@ -229,516 +231,509 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   }
 
   Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          GestureDetector(
+    return Builder(
+      builder: (context) {
+        final theme = context.watch<ThemeProvider>();
+
+        Widget _buildStyledIconButton(IconData icon, VoidCallback onTap) {
+          return GestureDetector(
             onTap: () {
+              onTap();
               _triggerHaptic();
-              Navigator.pop(context);
             },
             child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: theme.glassmorphicColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 1,
-                ),
+                border: Border.all(color: theme.borderColor, width: 1),
               ),
-              child: const Icon(
+              child: Icon(icon, color: theme.textColor, size: 22),
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              _buildStyledIconButton(
                 Icons.arrow_back,
-                color: Colors.white,
-                size: 22,
+                () => Navigator.pop(context),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Add Transaction',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add Transaction',
+                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: theme.textColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Track your finances',
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                        color: theme.secondaryTextColor,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Track your finances',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 14,
+              ),
+              const SizedBox(width: 12),
+              _buildStyledIconButton(
+                theme.isDarkMode
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+                () {
+                  context.read<ThemeProvider>().toggleTheme();
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildStyledIconButton(Icons.settings_outlined, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
                   ),
-                ),
-              ],
-            ),
+                );
+              }),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildTypeOption('Expense', true, const Color(0xFFff6b6b)),
-          ),
-          Expanded(
-            child: _buildTypeOption('Income', false, const Color(0xFF4ecdc4)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeOption(String label, bool isExpenseType, Color color) {
-    final isSelected = _isExpense == isExpenseType;
-    
-    return GestureDetector(
-      onTap: () {
-        _triggerHaptic();
-        setState(() {
-          _isExpense = isExpenseType;
-        });
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [color, color.withOpacity(0.8)],
-                )
-              : null,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.white54,
-              fontSize: 16,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildAmountInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Amount',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-              width: 1,
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+        final scheme = Theme.of(context).colorScheme;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Amount',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: theme.secondaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-          child: TextFormField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -2,
-            ),
-            decoration: InputDecoration(
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 24, top: 16),
-                child: Text(
-                  '₹',
-                  style: TextStyle(
-                    color: _isExpense 
-                        ? const Color(0xFFff6b6b) 
-                        : const Color(0xFF4ecdc4),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.glassmorphicColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.borderColor, width: 1),
+              ),
+              child: TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                style: Theme.of(context).textTheme.displayLarge!.copyWith(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -2,
+                  color: theme.textColor, // Dynamic Text Color
+                ),
+                decoration: InputDecoration(
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(left: 24),
+                    child: Text(
+                      '₹',
+                      style: TextStyle(
+                        color: scheme.error,
+                        fontSize: 48,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  hintText: '0',
+                  hintStyle: Theme.of(context).textTheme.displayLarge!.copyWith(
                     fontSize: 48,
                     fontWeight: FontWeight.w900,
+                    color: theme.secondaryTextColor.withValues(
+                      alpha: 0.4,
+                    ), // Dynamic Hint
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
                   ),
                 ),
-              ),
-              hintText: '0',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.2),
-                fontSize: 48,
-                fontWeight: FontWeight.w900,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an amount';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter a valid number';
+                  }
+                  return null;
+                },
               ),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter an amount';
-              }
-              if (double.tryParse(value) == null) {
-                return 'Please enter a valid number';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
   Widget _buildTitleInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Description',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          child: TextFormField(
-            controller: _titleController,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: InputDecoration(
-              hintText: 'e.g., Coffee at Starbucks',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
-              ),
-              prefixIcon: Icon(
-                Icons.edit_outlined,
-                color: Colors.white.withOpacity(0.4),
-                size: 20,
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Description',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: theme.secondaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a description';
-              }
-              return null;
-            },
-          ),
-        ),
-      ],
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.glassmorphicColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.borderColor, width: 1),
+              ),
+              child: TextFormField(
+                controller: _titleController,
+                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: theme.textColor, // Dynamic Text
+                ),
+                decoration: InputDecoration(
+                  hintText: 'e.g., Coffee at Starbucks',
+                  hintStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: theme.secondaryTextColor.withValues(alpha: 0.6),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.edit_outlined,
+                    color: theme.secondaryTextColor.withValues(alpha: 0.6),
+                    size: 20,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildCategorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Category',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _categories.map((category) {
-            return _buildCategoryChip(category);
-          }).toList(),
-        ),
-      ],
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Category',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: theme.secondaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: _categories
+                  .map((category) => _buildCategoryChip(category))
+                  .toList(),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildCategoryChip(Map<String, dynamic> category) {
     final isSelected = _selectedCategory == category['name'];
-    
-    return GestureDetector(
-      onTap: () {
-        _triggerHaptic();
-        setState(() {
-          _selectedCategory = category['name'] as String;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    category['color'] as Color,
-                    (category['color'] as Color).withOpacity(0.8),
-                  ],
-                )
-              : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? (category['color'] as Color).withOpacity(0.5)
-                : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: (category['color'] as Color).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              category['icon'] as String,
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              category['name'] as String,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildDateSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Date',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _selectDate,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+        final Color accent = category['color'] as Color;
+
+        return GestureDetector(
+          onTap: () {
+            _triggerHaptic();
+            setState(() {
+              _selectedCategory = category['name'] as String;
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(20),
+              gradient: isSelected
+                  ? LinearGradient(
+                      colors: [accent, accent.withValues(alpha: 0.8)],
+                    )
+                  : null,
+              color: isSelected ? null : theme.glassmorphicColor,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
+                color: isSelected
+                    ? accent.withValues(alpha: 0.5)
+                    : theme.borderColor,
+                width: isSelected ? 2 : 1,
               ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.calendar_today_outlined,
-                  color: Colors.white.withOpacity(0.4),
-                  size: 20,
-                ),
-                const SizedBox(width: 16),
                 Text(
-                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  category['icon'] as String,
+                  style: const TextStyle(fontSize: 20),
                 ),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white.withOpacity(0.3),
-                  size: 16,
+                const SizedBox(width: 8),
+                Text(
+                  category['name'] as String,
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: isSelected
+                        ? Colors
+                              .white // Always white when selected
+                        : theme.secondaryTextColor, // Dynamic otherwise
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDateSelector() {
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Date',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: theme.secondaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _selectDate,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.glassmorphicColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.borderColor, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      color: theme.secondaryTextColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textColor, // Dynamic Text
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: theme.secondaryTextColor.withValues(alpha: 0.6),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildNotesInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Notes (Optional)',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          child: TextFormField(
-            controller: _notesController,
-            maxLines: 4,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Add additional details...',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Notes (Optional)',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: theme.secondaryTextColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(20),
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: theme.glassmorphicColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.borderColor, width: 1),
+              ),
+              child: TextFormField(
+                controller: _notesController,
+                maxLines: 4,
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  fontSize: 14,
+                  color: theme.textColor, // Dynamic Text
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Add additional details...',
+                  hintStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: theme.secondaryTextColor.withValues(alpha: 0.6),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(20),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildSaveButton() {
-    return GestureDetector(
-      onTap: _isLoading ? null : _saveExpense,
-      child: Container(
-        height: 60,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: _isExpense
-                ? [const Color(0xFFff6b6b), const Color(0xFFee5a6f)]
-                : [const Color(0xFF4ecdc4), const Color(0xFF44a4a1)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (_isExpense 
-                  ? const Color(0xFFff6b6b) 
-                  : const Color(0xFF4ecdc4)).withOpacity(0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Center(
-          child: _isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2.5,
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Save Transaction',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
+    return Builder(
+      builder: (context) {
+        final theme = context.read<ThemeProvider>();
+        final scheme = Theme.of(context).colorScheme;
+
+        final Color primaryColor = _isExpense ? scheme.error : scheme.primary;
+
+        final Color secondaryColor = _isExpense
+            ? scheme.error.withValues(alpha: 0.85)
+            : scheme.primaryContainer;
+
+        return GestureDetector(
+          onTap: _isLoading ? null : _saveExpense,
+          child: Container(
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [primaryColor, secondaryColor]),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
-        ),
-      ),
+              ],
+            ),
+            child: Center(
+              child: _isLoading
+                  ? CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Save Transaction',
+                          style: Theme.of(context).textTheme.labelLarge!
+                              .copyWith(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// Success Dialog
+// ---------------------------
+// Dynamic Success Dialog
+// ---------------------------
 class _SuccessDialog extends StatefulWidget {
   final String amount;
   final bool isExpense;
@@ -768,18 +763,13 @@ class _SuccessDialogState extends State<_SuccessDialog>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
-      ),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5),
-      ),
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5)),
     );
 
     _controller.forward();
@@ -799,6 +789,28 @@ class _SuccessDialogState extends State<_SuccessDialog>
 
   @override
   Widget build(BuildContext context) {
+    // Watch ThemeProvider for changes
+    final theme = context.watch<ThemeProvider>();
+    final isDark = theme.isDarkMode;
+
+    // Define Dynamic Colors based on theme
+    final List<Color> bgColors = isDark
+        ? [
+            Colors.white.withValues(alpha: 0.1),
+            Colors.white.withValues(alpha: 0.05),
+          ]
+        : [
+            Colors.white.withValues(alpha: 0.95), // More opaque in light mode
+            Colors.white.withValues(alpha: 0.90),
+          ];
+
+    final Color borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.2)
+        : Colors.black.withValues(alpha: 0.05);
+
+    final Color titleColor = theme.textColor;
+    final Color subtitleColor = theme.secondaryTextColor;
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Dialog(
@@ -816,16 +828,19 @@ class _SuccessDialogState extends State<_SuccessDialog>
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.05),
-                    ],
+                    colors: bgColors,
                   ),
                   borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1.5,
-                  ),
+                  border: Border.all(color: borderColor, width: 1.5),
+                  boxShadow: isDark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -836,16 +851,23 @@ class _SuccessDialogState extends State<_SuccessDialog>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: widget.isExpense
-                              ? [const Color(0xFFff6b6b), const Color(0xFFee5a6f)]
-                              : [const Color(0xFF4ecdc4), const Color(0xFF44a4a1)],
+                              ? [
+                                  const Color(0xFFff6b6b),
+                                  const Color(0xFFee5a6f),
+                                ]
+                              : [
+                                  const Color(0xFF4ecdc4),
+                                  const Color(0xFF44a4a1),
+                                ],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (widget.isExpense
-                                    ? const Color(0xFFff6b6b)
-                                    : const Color(0xFF4ecdc4))
-                                .withOpacity(0.4),
+                            color:
+                                (widget.isExpense
+                                        ? const Color(0xFFff6b6b)
+                                        : const Color(0xFF4ecdc4))
+                                    .withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -858,10 +880,10 @@ class _SuccessDialogState extends State<_SuccessDialog>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Success!',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: titleColor, // Dynamic
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -1,
@@ -871,7 +893,7 @@ class _SuccessDialogState extends State<_SuccessDialog>
                     Text(
                       '${widget.isExpense ? 'Expense' : 'Income'} of ₹${widget.amount}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: subtitleColor, // Dynamic
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -880,7 +902,7 @@ class _SuccessDialogState extends State<_SuccessDialog>
                     Text(
                       'has been added successfully',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: subtitleColor, // Dynamic
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
