@@ -1,51 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import 'dart:ui';
-import 'add_expense.dart';
-import '../models/expense_model.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/providers/theme_provider.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Expense Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0f1419),
-        primaryColor: const Color(0xFF4ecdc4),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// SPLASH SCREEN
-// ============================================================================
-
-// ============================================================================
-// MAIN EXPENSE TRACKER SCREEN
-// ============================================================================
+import 'dart:ui';
+import 'dart:math' as math;
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import '../providers/expense_provider.dart';
+import '../services/pdf_service.dart';
+import '../models/expense_model.dart';
+import 'add_expense.dart';
+import '../providers/theme_provider.dart';
+import 'settings_screen.dart';
 
 class PremiumExpenseTracker extends StatefulWidget {
   const PremiumExpenseTracker({super.key});
@@ -57,48 +22,10 @@ class PremiumExpenseTracker extends StatefulWidget {
 class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     with TickerProviderStateMixin {
   late AnimationController _mainController;
-  late AnimationController _pulseController;
-  late AnimationController _shimmerController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
-  late Animation<double> _pulseAnimation;
+  late AnimationController _pulseController;
 
-  // Sample data
-  final double totalBudget = 50000;
-  final double totalExpenses = 32450;
-  final int daysRemaining = 12;
-  bool isDarkMode = true;
-
-  final List<Map<String, dynamic>> categories = [
-    {
-      'name': 'Food',
-      'spent': 8500.0,
-      'budget': 15000.0,
-      'icon': '🍔',
-      'color': const Color(0xFFff6b6b),
-    },
-    {
-      'name': 'Transport',
-      'spent': 5200.0,
-      'budget': 8000.0,
-      'icon': '🚗',
-      'color': const Color(0xFF4ecdc4),
-    },
-    {
-      'name': 'Shopping',
-      'spent': 12450.0,
-      'budget': 15000.0,
-      'icon': '🛍️',
-      'color': const Color(0xFFffd93d),
-    },
-    {
-      'name': 'Bills',
-      'spent': 6300.0,
-      'budget': 10000.0,
-      'icon': '💡',
-      'color': const Color(0xFFa78bfa),
-    },
-  ];
 
   @override
   void initState() {
@@ -107,14 +34,6 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
       duration: const Duration(milliseconds: 1800),
       vsync: this,
     );
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    )..repeat(reverse: true);
-    _shimmerController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
-      vsync: this,
-    )..repeat();
 
     _fadeAnimation = CurvedAnimation(
       parent: _mainController,
@@ -123,9 +42,10 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     _slideAnimation = Tween<double>(begin: 50, end: 0).animate(
       CurvedAnimation(parent: _mainController, curve: Curves.easeOutCubic),
     );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
 
     _mainController.forward();
   }
@@ -134,25 +54,22 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
   void dispose() {
     _mainController.dispose();
     _pulseController.dispose();
-    _shimmerController.dispose();
     super.dispose();
   }
 
   void _triggerHaptic() {
-    HapticFeedback.lightImpact();
+    // Implement haptic feedback if needed
   }
 
   @override
   Widget build(BuildContext context) {
+    final expenseProvider = Provider.of<ExpenseProvider>(context);
     final theme = context.watch<ThemeProvider>();
 
-    final remaining = totalBudget - totalExpenses;
-    final percentageUsed = (totalExpenses / totalBudget * 100).clamp(
-      0.0,
-      100.0,
-    );
-    final isWarning = percentageUsed >= 80;
-    final isCritical = percentageUsed >= 90;
+    final remaining = expenseProvider.remaining;
+    final percentageUsed = expenseProvider.percentageUsed;
+    final isWarning = expenseProvider.isWarning;
+    final isCritical = expenseProvider.isCritical;
 
     return Scaffold(
       backgroundColor: theme.backgroundColor,
@@ -183,15 +100,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                       const SizedBox(height: 20),
 
                       // Quick Action Chips
-                      _buildQuickActions(),
-                      const SizedBox(height: 24),
-
-                      // Insights Card
-                      _buildInsightsCard(),
-                      const SizedBox(height: 24),
-
-                      // Category Breakdown
-                      _buildCategoryBreakdown(),
+                      _buildQuickActions(expenseProvider),
                       const SizedBox(height: 24),
 
                       // Recent Transactions
@@ -203,17 +112,16 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
               ],
             ),
           ),
-
-          // Floating Action Button
-          _buildFloatingActionButton(),
         ],
       ),
+      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
   Widget _buildAnimatedBackground() {
     return AnimatedBuilder(
-      animation: _shimmerController,
+      animation: _mainController,
       builder: (context, child) {
         final theme = context.watch<ThemeProvider>();
 
@@ -223,7 +131,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: theme.backgroundGradient,
-              stops: [0.0, _shimmerController.value, 1.0],
+              stops: const [0.0, 0.5, 1.0],
             ),
           ),
         );
@@ -254,13 +162,13 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                       FadeTransition(
                         opacity: _fadeAnimation,
                         child: Text(
-                          'January 2026',
+                          DateFormat.yMMMM().format(DateTime.now()),
                           style: TextStyle(
                             color: Theme.of(context)
                                 .textTheme
                                 .bodyMedium!
                                 .color!
-                                .withValues(alpha: 0.5),
+                                .withOpacity(0.5),
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             letterSpacing: 1,
@@ -275,8 +183,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         ).animate(_fadeAnimation),
                         child: Text(
                           'My Wallet',
-                          style: Theme.of(context).textTheme.displayLarge!
-                              .copyWith(
+                          style: Theme.of(context).textTheme.displayLarge!.copyWith(
                                 fontSize: 36,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -1.5,
@@ -286,11 +193,8 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                       ),
                     ],
                   ),
-
-                  /// 🔥 RIGHT ACTIONS
                   Row(
                     children: [
-                      // 🌗 THEME TOGGLE
                       _buildIconButton(
                         context.watch<ThemeProvider>().isDarkMode
                             ? Icons.light_mode_rounded
@@ -301,14 +205,16 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         },
                       ),
                       const SizedBox(width: 12),
-
-                      _buildIconButton(Icons.search, () {
-                        _triggerHaptic();
-                      }),
-                      const SizedBox(width: 12),
-                      _buildIconButton(Icons.notifications_outlined, () {
-                        _triggerHaptic();
-                      }, hasNotification: true),
+                      _buildIconButton(
+                        Icons.settings_outlined,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                          );
+                          _triggerHaptic();
+                        },
+                      ),
                     ],
                   ),
                 ],
@@ -359,7 +265,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                           BoxShadow(
                             color: Theme.of(
                               context,
-                            ).colorScheme.error.withValues(alpha: 0.5),
+                            ).colorScheme.error.withOpacity(0.5),
                             blurRadius: 4,
                             spreadRadius: 1,
                           ),
@@ -381,6 +287,8 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     bool isWarning,
     bool isCritical,
   ) {
+    final expenseProvider = Provider.of<ExpenseProvider>(context);
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: AnimatedBuilder(
@@ -399,8 +307,8 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             final Color statusColor = isCritical
                 ? scheme.error
                 : isWarning
-                ? scheme.secondary
-                : scheme.primary;
+                    ? Colors.orangeAccent
+                    : scheme.primary;
 
             return ClipRRect(
               borderRadius: BorderRadius.circular(32),
@@ -418,7 +326,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                     border: Border.all(color: theme.borderColor, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
@@ -426,33 +334,25 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                   ),
                   child: Column(
                     children: [
-                      // Circular Progress
                       Stack(
                         alignment: Alignment.center,
                         children: [
-                          Container(
-                            width: 220,
-                            height: 220,
-                         
-                          ),
                           SizedBox(
                             width: 200,
                             height: 200,
                             child: AnimatedBuilder(
-                              animation: _pulseAnimation,
+                              animation: _pulseController,
                               builder: (context, child) {
                                 return Transform.scale(
                                   scale: isWarning
-                                      ? _pulseAnimation.value
+                                      ? 1 + _pulseController.value * 0.05
                                       : 1.0,
                                   child: CustomPaint(
                                     painter: CircularProgressPainter(
                                       progress:
-                                          percentageUsed /
-                                          100 *
-                                          _fadeAnimation.value,
-                                      backgroundColor: theme.borderColor
-                                          .withValues(alpha: 0.5),
+                                          percentageUsed / 100 * _fadeAnimation.value,
+                                      backgroundColor:
+                                          theme.borderColor.withOpacity(0.5),
                                       progressColor: statusColor,
                                       strokeWidth: 14,
                                     ),
@@ -481,28 +381,6 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                                               letterSpacing: 1,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: statusColor.withValues(
-                                                alpha: 0.15,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Text(
-                                              '${percentageUsed.toStringAsFixed(1)}% Used',
-                                              style: TextStyle(
-                                                color: statusColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
                                         ],
                                       ),
                                     ),
@@ -514,14 +392,12 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         ],
                       ),
                       const SizedBox(height: 32),
-
-                      // Stats
                       Row(
                         children: [
                           Expanded(
                             child: _buildStatColumn(
                               'Monthly Budget',
-                              '₹${totalBudget.toStringAsFixed(0)}',
+                              '₹${expenseProvider.monthlyBudget.toStringAsFixed(0)}',
                               Icons.account_balance_wallet_outlined,
                             ),
                           ),
@@ -533,7 +409,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                           Expanded(
                             child: _buildStatColumn(
                               'Total Spent',
-                              '₹${totalExpenses.toStringAsFixed(0)}',
+                              '₹${expenseProvider.totalExpenses.toStringAsFixed(0)}',
                               Icons.shopping_bag_outlined,
                             ),
                           ),
@@ -562,18 +438,18 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
             Text(
               value,
               style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ],
         );
@@ -581,62 +457,52 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(ExpenseProvider provider) {
     final scheme = Theme.of(context).colorScheme;
-    final themeProvider = Provider.of<ThemeProvider>(context);
 
     final actions = [
       {
         'icon': Icons.add_circle_outline,
         'label': 'Add',
         'color': scheme.primary,
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddExpenseScreen()));
+        }
       },
       {
-        'icon': Icons.bar_chart_rounded,
-        'label': 'Stats',
-        'color': themeProvider.warningColor,
-      },
-      {
-        'icon': Icons.category_outlined,
-        'label': 'Categories',
+        'icon': Icons.download,
+        'label': 'Download',
         'color': scheme.secondary,
-      },
-      {
-        'icon': Icons.settings_outlined,
-        'label': 'Settings',
-        'color': scheme.error,
+        'onTap': () async {
+          final expenses = Hive.box<ExpenseModel>('expenses').values.toList();
+          await PdfService.generateAndOpenPdf(expenses);
+        }
       },
     ];
 
-    return SizedBox(
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: actions.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index < actions.length - 1 ? 16 : 0,
-            ),
-            child: _buildQuickActionChip(
-              actions[index]['icon'] as IconData,
-              actions[index]['label'] as String,
-              actions[index]['color'] as Color,
-            ),
-          );
-        },
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: actions.map((action) {
+        return _buildQuickActionChip(
+          action['icon'] as IconData,
+          action['label'] as String,
+          action['color'] as Color,
+          action['onTap'] as VoidCallback,
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildQuickActionChip(IconData icon, String label, Color color) {
+  Widget _buildQuickActionChip(IconData icon, String label, Color color, VoidCallback onTap) {
     return Builder(
       builder: (context) {
         final theme = context.read<ThemeProvider>();
 
         return GestureDetector(
-          onTap: _triggerHaptic,
+          onTap: () {
+            onTap();
+            _triggerHaptic();
+          },
           child: Container(
             width: 80,
             decoration: BoxDecoration(
@@ -655,199 +521,12 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInsightsCard() {
-    final dailyAvg = totalExpenses / (30 - daysRemaining);
-    final projectedTotal = dailyAvg * 30;
-    final willExceed = projectedTotal > totalBudget;
-
-    final scheme = Theme.of(context).colorScheme;
-    final theme = context.read<ThemeProvider>();
-
-    final Color accentColor = willExceed ? scheme.error : scheme.primary;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accentColor.withValues(alpha: 0.15),
-            accentColor.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              willExceed
-                  ? Icons.warning_amber_rounded
-                  : Icons.lightbulb_outline,
-              color: accentColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  willExceed ? 'Budget Alert!' : 'Smart Insight',
-                  style: TextStyle(
-                    color: accentColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  willExceed
-                      ? 'At this rate, you\'ll exceed budget by ₹${(projectedTotal - totalBudget).toStringAsFixed(0)}'
-                      : 'Great job! You\'re on track to save ₹${(totalBudget - projectedTotal).toStringAsFixed(0)}',
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    fontSize: 13,
-                    height: 1.4,
-                    color: theme.secondaryTextColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryBreakdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            'Spending by Category',
-            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...categories.map((category) => _buildCategoryItem(category)).toList(),
-      ],
-    );
-  }
-
-  Widget _buildCategoryItem(Map<String, dynamic> category) {
-    final double spent = category['spent'] as double;
-    final double budget = category['budget'] as double;
-    final percentage = (spent / budget * 100).clamp(0.0, 100.0);
-
-    return Builder(
-      builder: (context) {
-        final theme = context.read<ThemeProvider>();
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.glassmorphicColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: theme.borderColor, width: 1),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: (category['color'] as Color).withValues(
-                        alpha: 0.15,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: Text(
-                        category['icon'] as String,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          category['name'] as String,
-                          style: Theme.of(context).textTheme.bodyLarge!
-                              .copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '₹${spent.toStringAsFixed(0)} of ₹${budget.toStringAsFixed(0)}',
-                          style: Theme.of(context).textTheme.bodyMedium!
-                              .copyWith(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: theme.secondaryTextColor,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '${percentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      color: category['color'] as Color,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: percentage / 100,
-                  backgroundColor: theme.borderColor,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    category['color'] as Color,
-                  ),
-                  minHeight: 6,
-                ),
-              ),
-            ],
           ),
         );
       },
@@ -866,21 +545,10 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
               child: Text(
                 'Recent Activity',
                 style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: _triggerHaptic,
-              child: Text(
-                'View All',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
               ),
             ),
           ],
@@ -889,9 +557,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
         ValueListenableBuilder<Box<ExpenseModel>>(
           valueListenable: Hive.box<ExpenseModel>('expenses').listenable(),
           builder: (context, box, _) {
-            final expenses = box.values.toList().cast<ExpenseModel>();
-
-            if (expenses.isEmpty) {
+            if (box.values.isEmpty) {
               return Center(
                 child: Text(
                   "No recent transactions",
@@ -899,15 +565,15 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                 ),
               );
             }
+            final sortedExpenses = box.values.toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
+            final recent = sortedExpenses.take(5).toList();
 
-            // Sort by date (newest first) and take top 5
-            expenses.sort((a, b) => b.date.compareTo(a.date));
-            final recentExpenses = expenses.take(5).toList();
-
-            return Column(
-              children: recentExpenses
-                  .map((t) => _buildTransactionItem(t))
-                  .toList(),
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recent.length,
+              itemBuilder: (context, index) => _buildTransactionItem(recent[index]),
             );
           },
         ),
@@ -942,8 +608,8 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      (categoryStyle['color'] as Color).withValues(alpha: 0.3),
-                      (categoryStyle['color'] as Color).withValues(alpha: 0.1),
+                      (categoryStyle['color'] as Color).withOpacity(0.3),
+                      (categoryStyle['color'] as Color).withOpacity(0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
@@ -961,18 +627,18 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                     Text(
                       e.title,
                       style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _formatDate(e.date),
                       style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: theme.secondaryTextColor,
-                      ),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: theme.secondaryTextColor,
+                          ),
                     ),
                   ],
                 ),
@@ -1067,7 +733,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.4),
+                          color: scheme.primary.withOpacity(0.4),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -1080,7 +746,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                            color: scheme.onPrimary.withValues(alpha: 0.2),
+                            color: scheme.onPrimary.withOpacity(0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -1112,7 +778,6 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
   }
 }
 
-// Custom painter for circular progress
 class CircularProgressPainter extends CustomPainter {
   final double progress;
   final Color backgroundColor;
@@ -1131,25 +796,15 @@ class CircularProgressPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
-    // Background circle
     final backgroundPaint = Paint()
       ..color = backgroundColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = strokeWidth;
 
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    // Progress arc
     final progressPaint = Paint()
-      ..shader = SweepGradient(
-        colors: [
-          progressColor,
-          progressColor.withValues(alpha: 0.6),
-          progressColor,
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..color = progressColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -1167,7 +822,6 @@ class CircularProgressPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CircularProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
+  bool shouldRepaint(CircularProgressPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

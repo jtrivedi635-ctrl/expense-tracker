@@ -5,20 +5,13 @@ import 'services/database_service.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
+import 'models/expense_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Hive database
   await DatabaseService.init();
-
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
 
   runApp(const MyApp());
 }
@@ -37,10 +30,19 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
+          // Set system UI overlay style based on theme
+          SystemChrome.setSystemUIOverlayStyle(
+            SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness:
+                  themeProvider.isDarkMode ? Brightness.light : Brightness.dark,
+            ),
+          );
+
           return MaterialApp(
             title: 'Expense Tracker',
             debugShowCheckedModeBanner: false,
-            theme:ThemeProvider.mintlightTheme,
+            theme: themeProvider.currentTheme,
             darkTheme: ThemeProvider.darkTheme,
             themeMode: themeProvider.isDarkMode
                 ? ThemeMode.dark
