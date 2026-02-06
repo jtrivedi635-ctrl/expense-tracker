@@ -45,27 +45,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   @override
   void initState() {
     super.initState();
-    
     _formController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
     _formFadeAnimation = CurvedAnimation(
       parent: _formController,
       curve: Curves.easeOut,
     );
-
-    _formSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _formController,
-        curve: Curves.easeOutCubic,
-      ),
+    _formSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+      CurvedAnimation(parent: _formController, curve: Curves.easeOutCubic),
     );
-
     _formController.forward();
   }
 
@@ -86,6 +77,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   Future<void> _selectDate() async {
     _triggerHaptic();
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final themeProvider = context.read<ThemeProvider>();
+    final baseTheme = Theme.of(context);
+    final scheme = baseTheme.colorScheme;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -94,10 +89,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       builder: (context, child) {
         return Theme(
           data: themeProvider.currentTheme,
+          data: baseTheme.copyWith(
+            colorScheme: scheme.copyWith(
+              primary: themeProvider.primaryColor,
+              onPrimary: Colors.white,
+              surface: themeProvider.cardColor,
+              onSurface: themeProvider.textColor,
+            ),
+            dialogBackgroundColor: themeProvider.cardColor,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: themeProvider.primaryColor,
+              ),
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor: themeProvider.cardColor,
+            ),
+          ),
           child: child!,
         );
       },
     );
+
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
@@ -107,10 +120,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
   void _saveExpense({bool force = false}) async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
+      setState(() => _isLoading = true);
       _triggerHaptic();
       
       String category = _selectedCategory;
@@ -121,6 +131,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       }
 
       // Create expense model
+
       final expense = ExpenseModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
@@ -152,6 +163,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           });
           _showBudgetExceededDialog();
         }
+      await context.read<ExpenseProvider>().addExpense(expense);
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSuccessDialog();
       }
     }
   }
@@ -189,7 +206,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         isExpense: _isExpense,
         onDismiss: () {
           Navigator.pop(context);
-          Navigator.pop(context); // Go back to home
+          Navigator.pop(context);
         },
       ),
     );
@@ -201,20 +218,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     
     return Scaffold(
       backgroundColor: themeProvider.backgroundColor,
+    // ✅ FIXED: Use watch instead of read
+    final theme = context.watch<ThemeProvider>();
+
+    return Scaffold(
+      backgroundColor: theme.backgroundColor,
       body: Stack(
         children: [
-          // Animated background
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: themeProvider.backgroundGradient,
+                colors: theme.backgroundGradient,
               ),
             ),
           ),
-          
-          // Main content
           SafeArea(
             child: Column(
               children: [
@@ -222,6 +242,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 _buildAppBar(themeProvider),
                 
                 // Form content
+                _buildAppBar(theme),
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -252,6 +273,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                               _buildNotesInput(themeProvider),
                               const SizedBox(height: 32),
                               _buildSaveButton(themeProvider),
+                              const SizedBox(height: 32),
+                              _buildAmountInput(theme),
+                              const SizedBox(height: 32),
+                              _buildTitleInput(theme),
+                              const SizedBox(height: 24),
+                              _buildCategorySection(theme),
+                              const SizedBox(height: 24),
+                              _buildDateSelector(theme),
+                              const SizedBox(height: 24),
+                              _buildNotesInput(theme),
+                              const SizedBox(height: 32),
+                              _buildSaveButton(theme),
                               const SizedBox(height: 20),
                             ],
                           ),
@@ -269,6 +302,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   }
 
   Widget _buildAppBar(ThemeProvider themeProvider) {
+  Widget _buildAppBar(ThemeProvider theme) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -296,6 +330,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               ),
             ),
           ),
+          _buildIconButton(Icons.arrow_back, () => Navigator.pop(context), theme),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -307,16 +342,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                     color: themeProvider.textColor,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
+                    fontSize: 24,
                     letterSpacing: -0.5,
+                    color: theme.textColor,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Track your finances',
                   style: TextStyle(
                     color: themeProvider.secondaryTextColor,
+                    color: theme.secondaryTextColor,
                     fontSize: 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -376,16 +418,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   Widget _buildTypeOption(String label, bool isExpenseType, Color color, ThemeProvider themeProvider) {
     final isSelected = _isExpense == isExpenseType;
     
+          const SizedBox(width: 12),
+          _buildIconButton(
+            theme.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            () => context.read<ThemeProvider>().toggleTheme(),
+            theme,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, VoidCallback onTap, ThemeProvider theme) {
     return GestureDetector(
       onTap: () {
+        onTap();
         _triggerHaptic();
-        setState(() {
-          _isExpense = isExpenseType;
-        });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Container(
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           gradient: isSelected
               ? LinearGradient(
@@ -412,7 +464,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
+          color: theme.glassmorphicColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.borderColor, width: 1),
         ),
+        child: Icon(icon, color: theme.textColor, size: 22),
       ),
     );
   }
@@ -439,6 +495,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               color: themeProvider.borderColor,
               width: 1,
             ),
+  Widget _buildAmountInput(ThemeProvider theme) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Amount', style: TextStyle(color: theme.secondaryTextColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.glassmorphicColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.borderColor, width: 1),
           ),
           child: TextFormField(
             controller: _amountController,
@@ -469,19 +537,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 fontSize: 48,
                 fontWeight: FontWeight.w900,
               ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
+            style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -2, color: theme.textColor),
+            decoration: InputDecoration(
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 24),
+                child: Text('₹', style: TextStyle(color: _isExpense ? scheme.error : scheme.primary, fontSize: 48, fontWeight: FontWeight.w900)),
               ),
+              hintText: '0',
+              hintStyle: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: theme.secondaryTextColor.withValues(alpha: 0.4)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter an amount';
-              }
-              if (double.tryParse(value) == null) {
-                return 'Please enter a valid number';
-              }
+              if (value == null || value.isEmpty) return 'Please enter an amount';
+              if (double.tryParse(value) == null) return 'Please enter a valid number';
               return null;
             },
           ),
@@ -535,13 +604,29 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 color: themeProvider.secondaryTextColor,
                 size: 20,
               ),
+  Widget _buildTitleInput(ThemeProvider theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Description', style: TextStyle(color: theme.secondaryTextColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.glassmorphicColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.borderColor, width: 1),
+          ),
+          child: TextFormField(
+            controller: _titleController,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.textColor),
+            decoration: InputDecoration(
+              hintText: 'e.g., Coffee at Starbucks',
+              hintStyle: TextStyle(color: theme.secondaryTextColor.withValues(alpha: 0.6)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              prefixIcon: Icon(Icons.edit_outlined, color: theme.secondaryTextColor.withValues(alpha: 0.6), size: 20),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter a description';
-              }
-              return null;
-            },
+            validator: (value) => (value == null || value.isEmpty) ? 'Please enter a description' : null,
           ),
         ),
       ],
@@ -574,8 +659,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   }
 
   Widget _buildCategoryChip(Map<String, dynamic> category, ThemeProvider themeProvider) {
+  Widget _buildCategorySection(ThemeProvider theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Category', style: TextStyle(color: theme.secondaryTextColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 12, runSpacing: 12, children: _categories.map((cat) => _buildCategoryChip(cat, theme)).toList()),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChip(Map<String, dynamic> category, ThemeProvider theme) {
     final isSelected = _selectedCategory == category['name'];
-    
+    final Color accent = category['color'] as Color;
     return GestureDetector(
       onTap: () {
         _triggerHaptic();
@@ -587,6 +684,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
             _showCustomCategory = false;
           }
         });
+        setState(() => _selectedCategory = category['name'] as String);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -617,14 +715,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                   ),
                 ]
               : null,
+          gradient: isSelected ? LinearGradient(colors: [accent, accent.withValues(alpha: 0.8)]) : null,
+          color: isSelected ? null : theme.glassmorphicColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? accent.withValues(alpha: 0.5) : theme.borderColor, width: isSelected ? 2 : 1),
+          boxShadow: isSelected ? [BoxShadow(color: accent.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))] : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              category['icon'] as String,
-              style: const TextStyle(fontSize: 20),
-            ),
+            Text(category['icon'] as String, style: const TextStyle(fontSize: 20)),
             const SizedBox(width: 8),
             Text(
               category['name'] as String,
@@ -634,6 +734,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
+            Text(category['name'] as String, style: TextStyle(color: isSelected ? Colors.white : theme.textColor, fontSize: 14, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
           ],
         ),
       ),
@@ -711,6 +812,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
             letterSpacing: 0.5,
           ),
         ),
+  Widget _buildDateSelector(ThemeProvider theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Date', style: TextStyle(color: theme.secondaryTextColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: _selectDate,
@@ -776,6 +882,36 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               color: themeProvider.borderColor,
               width: 1,
             ),
+              color: theme.glassmorphicColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: theme.borderColor, width: 1),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today_outlined, color: theme.secondaryTextColor, size: 20),
+                const SizedBox(width: 16),
+                Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.textColor)),
+                const Spacer(),
+                Icon(Icons.arrow_forward_ios, color: theme.secondaryTextColor.withValues(alpha: 0.6), size: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotesInput(ThemeProvider theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Notes (Optional)', style: TextStyle(color: theme.secondaryTextColor, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.glassmorphicColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.borderColor, width: 1),
           ),
           child: TextFormField(
             controller: _notesController,
@@ -789,6 +925,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               hintStyle: TextStyle(
                 color: themeProvider.secondaryTextColor.withOpacity(0.5),
               ),
+            style: TextStyle(fontSize: 14, color: theme.textColor),
+            decoration: InputDecoration(
+              hintText: 'Add additional details...',
+              hintStyle: TextStyle(color: theme.secondaryTextColor.withValues(alpha: 0.6)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(20),
             ),
@@ -799,16 +939,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   }
 
   Widget _buildSaveButton(ThemeProvider themeProvider) {
+  Widget _buildSaveButton(ThemeProvider theme) {
+    final scheme = Theme.of(context).colorScheme;
+    final Color primaryColor = _isExpense ? scheme.error : scheme.primary;
+    final Color secondaryColor = _isExpense ? scheme.error.withValues(alpha: 0.85) : scheme.primaryContainer;
+
     return GestureDetector(
       onTap: _isLoading ? null : () => _saveExpense(),
       child: Container(
         height: 60,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: _isExpense
-                ? [const Color(0xFFff6b6b), const Color(0xFFee5a6f)]
-                : [const Color(0xFF4ecdc4), const Color(0xFF44a4a1)],
-          ),
+          gradient: LinearGradient(colors: [primaryColor, secondaryColor]),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -819,32 +960,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               offset: const Offset(0, 10),
             ),
           ],
+          boxShadow: [BoxShadow(color: primaryColor.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 10))],
         ),
         child: Center(
           child: _isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2.5,
-                  ),
-                )
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                      child: const Icon(Icons.check, color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 12),
                      Text(
@@ -856,6 +984,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                         letterSpacing: 0.5,
                       ),
                     ),
+                    const Text('Save Transaction', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                   ],
                 ),
         ),
@@ -864,24 +993,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   }
 }
 
-// Success Dialog
 class _SuccessDialog extends StatefulWidget {
   final String amount;
   final bool isExpense;
   final VoidCallback onDismiss;
 
-  const _SuccessDialog({
-    required this.amount,
-    required this.isExpense,
-    required this.onDismiss,
-  });
+  const _SuccessDialog({required this.amount, required this.isExpense, required this.onDismiss});
 
   @override
   State<_SuccessDialog> createState() => _SuccessDialogState();
 }
 
-class _SuccessDialogState extends State<_SuccessDialog>
-    with SingleTickerProviderStateMixin {
+class _SuccessDialogState extends State<_SuccessDialog> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -889,31 +1012,12 @@ class _SuccessDialogState extends State<_SuccessDialog>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
-      ),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5),
-      ),
-    );
-
+    _controller = AnimationController(duration: const Duration(milliseconds: 600), vsync: this);
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.5)));
     _controller.forward();
-
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        widget.onDismiss();
-      }
+      if (mounted) widget.onDismiss();
     });
   }
 
@@ -926,6 +1030,9 @@ class _SuccessDialogState extends State<_SuccessDialog>
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    // ✅ FIXED: Use watch
+    final theme = context.watch<ThemeProvider>();
+    final isDark = theme.isDarkMode;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -951,6 +1058,11 @@ class _SuccessDialogState extends State<_SuccessDialog>
                     color: themeProvider.borderColor,
                     width: 1.5,
                   ),
+                    colors: isDark ? [Colors.white.withValues(alpha: 0.1), Colors.white.withValues(alpha: 0.05)] : [Colors.white.withValues(alpha: 0.95), Colors.white.withValues(alpha: 0.90)],
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.05), width: 1.5),
+                  boxShadow: isDark ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 30, offset: const Offset(0, 10))],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -980,7 +1092,11 @@ class _SuccessDialogState extends State<_SuccessDialog>
                         Icons.check_rounded,
                         color: Colors.white,
                         size: 48,
+                        gradient: LinearGradient(colors: widget.isExpense ? [const Color(0xFFff6b6b), const Color(0xFFee5a6f)] : [const Color(0xFF4ecdc4), const Color(0xFF44a4a1)]),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: (widget.isExpense ? const Color(0xFFff6b6b) : const Color(0xFF4ecdc4)).withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 5)],
                       ),
+                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 48),
                     ),
                     const SizedBox(height: 24),
                      Text(
@@ -1010,6 +1126,11 @@ class _SuccessDialogState extends State<_SuccessDialog>
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    Text('Success!', style: TextStyle(color: theme.textColor, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                    const SizedBox(height: 8),
+                    Text('${widget.isExpense ? 'Expense' : 'Income'} of ₹${widget.amount}', style: TextStyle(color: theme.secondaryTextColor, fontSize: 16, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text('has been added successfully', style: TextStyle(color: theme.secondaryTextColor, fontSize: 16, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),

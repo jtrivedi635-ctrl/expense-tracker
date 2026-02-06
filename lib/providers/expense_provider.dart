@@ -47,7 +47,7 @@ class ExpenseProvider extends ChangeNotifier {
 
     for (var expense in _expenses) {
       if (expense.isExpense) {
-        categoryTotals[expense.category] = 
+        categoryTotals[expense.category] =
             (categoryTotals[expense.category] ?? 0) + expense.amount;
       }
     }
@@ -121,6 +121,12 @@ class ExpenseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- ADDED THIS METHOD TO FIX THE ERROR ---
+  Future<void> setBudget(double budget) async {
+    await updateMonthlyBudget(budget);
+  }
+  // ------------------------------------------
+
   // Update category budget
   Future<void> updateCategoryBudget(String category, double budget) async {
     await DatabaseService.setCategoryBudget(category, budget);
@@ -150,7 +156,7 @@ class ExpenseProvider extends ChangeNotifier {
     return categories.map((category) {
       final spent = expensesByCategory[category['name']] ?? 0.0;
       final budget = _categoryBudgets[category['name']] ?? 0.0;
-      
+
       return {
         'name': category['name'],
         'icon': category['icon'],
