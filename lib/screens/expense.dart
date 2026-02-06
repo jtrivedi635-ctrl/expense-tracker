@@ -398,7 +398,7 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                         children: [
                           Expanded(
                             child: _buildStatColumn(
-                              'Monthly Budget',
+                              'Budget',
                               '₹${expenseProvider.monthlyBudget.toStringAsFixed(0)}',
                               Icons.account_balance_wallet_outlined,
                             ),
@@ -410,9 +410,21 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                           ),
                           Expanded(
                             child: _buildStatColumn(
-                              'Total Spent',
+                              'Income',
+                              '₹${expenseProvider.totalIncome.toStringAsFixed(0)}',
+                              Icons.arrow_upward,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 50,
+                            color: theme.borderColor,
+                          ),
+                          Expanded(
+                            child: _buildStatColumn(
+                              'Spent',
                               '₹${expenseProvider.totalExpenses.toStringAsFixed(0)}',
-                              Icons.shopping_bag_outlined,
+                              Icons.arrow_downward,
                             ),
                           ),
                         ],
@@ -663,9 +675,9 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                 ),
               ),
               Text(
-                '-₹${e.amount.abs().toStringAsFixed(2)}',
+                e.isExpense ? '-₹${e.amount.abs().toStringAsFixed(2)}' : '+₹${e.amount.abs().toStringAsFixed(2)}',
                 style: TextStyle(
-                  color: scheme.error,
+                  color: e.isExpense ? scheme.error : scheme.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),

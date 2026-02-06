@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../providers/theme_provider.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({super.key});
@@ -84,6 +85,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
   Future<void> _selectDate() async {
     _triggerHaptic();
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -91,14 +93,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF4ecdc4),
-              onPrimary: Colors.white,
-              surface: Color(0xFF1a1f2e),
-              onSurface: Colors.white,
-            ),
-          ),
+          data: themeProvider.currentTheme,
           child: child!,
         );
       },
@@ -110,7 +105,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     }
   }
 
-  void _saveExpense() async {
+  void _saveExpense({bool force = false}) async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -137,7 +132,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
       );
 
       // Save to database via provider
-      final success = await context.read<ExpenseProvider>().addExpense(expense);
+      final success = await context.read<ExpenseProvider>().addExpense(expense, force: force);
 
       if (success) {
         await Future.delayed(const Duration(milliseconds: 500));
@@ -173,19 +168,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              final expense = ExpenseModel(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                title: _titleController.text,
-                amount: double.parse(_amountController.text),
-                category: _selectedCategory,
-                date: _selectedDate,
-                isExpense: _isExpense,
-                notes: _notesController.text.isEmpty ? null : _notesController.text,
-              );
-              await context.read<ExpenseProvider>().addExpense(expense);
-              _showSuccessDialog();
+              _saveExpense(force: true);
             },
             child: const Text('Continue'),
           ),
@@ -212,21 +197,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFF0f1419),
+      backgroundColor: themeProvider.backgroundColor,
       body: Stack(
         children: [
           // Animated background
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0f1419),
-                  Color(0xFF1a1f2e),
-                  Color(0xFF0f1419),
-                ],
+                colors: themeProvider.backgroundGradient,
               ),
             ),
           ),
@@ -236,7 +219,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
             child: Column(
               children: [
                 // Custom app bar
-                _buildAppBar(),
+                _buildAppBar(themeProvider),
                 
                 // Form content
                 Expanded(
@@ -252,23 +235,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildTypeSelector(),
+                              _buildTypeSelector(themeProvider),
                               const SizedBox(height: 32),
-                              _buildAmountInput(),
+                              _buildAmountInput(themeProvider),
                               const SizedBox(height: 32),
-                              _buildTitleInput(),
+                              _buildTitleInput(themeProvider),
                               const SizedBox(height: 24),
-                              _buildCategorySection(),
+                              _buildCategorySection(themeProvider),
                               if (_showCustomCategory)
                                 const SizedBox(height: 24),
                               if (_showCustomCategory)
-                                _buildCustomCategoryInput(),
+                                _buildCustomCategoryInput(themeProvider),
                               const SizedBox(height: 24),
-                              _buildDateSelector(),
+                              _buildDateSelector(themeProvider),
                               const SizedBox(height: 24),
-                              _buildNotesInput(),
+                              _buildNotesInput(themeProvider),
                               const SizedBox(height: 32),
-                              _buildSaveButton(),
+                              _buildSaveButton(themeProvider),
                               const SizedBox(height: 20),
                             ],
                           ),
@@ -285,7 +268,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(ThemeProvider themeProvider) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -299,29 +282,29 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: themeProvider.glassmorphicColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
+                  color: themeProvider.borderColor,
                   width: 1,
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
-                color: Colors.white,
+                color: themeProvider.textColor,
                 size: 22,
               ),
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Add Transaction',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: themeProvider.textColor,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
@@ -331,7 +314,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 Text(
                   'Track your finances',
                   style: TextStyle(
-                    color: Colors.white54,
+                    color: themeProvider.secondaryTextColor,
                     fontSize: 14,
                   ),
                 ),
@@ -366,31 +349,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildTypeSelector() {
+  Widget _buildTypeSelector(ThemeProvider themeProvider) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: themeProvider.glassmorphicColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: themeProvider.borderColor,
           width: 1,
         ),
       ),
       child: Row(
         children: [
           Expanded(
-            child: _buildTypeOption('Expense', true, const Color(0xFFff6b6b)),
+            child: _buildTypeOption('Expense', true, const Color(0xFFff6b6b), themeProvider),
           ),
           Expanded(
-            child: _buildTypeOption('Income', false, const Color(0xFF4ecdc4)),
+            child: _buildTypeOption('Income', false, const Color(0xFF4ecdc4), themeProvider),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTypeOption(String label, bool isExpenseType, Color color) {
+  Widget _buildTypeOption(String label, bool isExpenseType, Color color, ThemeProvider themeProvider) {
     final isSelected = _isExpense == isExpenseType;
     
     return GestureDetector(
@@ -424,7 +407,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.white : Colors.white54,
+              color: isSelected ? Colors.white : themeProvider.secondaryTextColor,
               fontSize: 16,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -434,14 +417,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildAmountInput() {
+  Widget _buildAmountInput(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Amount',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -450,18 +433,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: themeProvider.glassmorphicColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: themeProvider.borderColor,
               width: 1,
             ),
           ),
           child: TextFormField(
             controller: _amountController,
             keyboardType: TextInputType.number,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: themeProvider.textColor,
               fontSize: 48,
               fontWeight: FontWeight.w900,
               letterSpacing: -2,
@@ -473,8 +456,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                   '₹',
                   style: TextStyle(
                     color: _isExpense 
-                        ? const Color(0xFFff6b6b) 
-                        : const Color(0xFF4ecdc4),
+                        ? themeProvider.destructiveColor
+                        : themeProvider.successColor,
                     fontSize: 48,
                     fontWeight: FontWeight.w900,
                   ),
@@ -482,7 +465,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               ),
               hintText: '0',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.2),
+                color: themeProvider.secondaryTextColor.withOpacity(0.3),
                 fontSize: 48,
                 fontWeight: FontWeight.w900,
               ),
@@ -507,14 +490,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildTitleInput() {
+  Widget _buildTitleInput(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Description',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -523,24 +506,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: themeProvider.glassmorphicColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: themeProvider.borderColor,
               width: 1,
             ),
           ),
           child: TextFormField(
             controller: _titleController,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: themeProvider.textColor,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               hintText: 'e.g., Coffee at Starbucks',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
+                color: themeProvider.secondaryTextColor.withOpacity(0.5),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
@@ -549,7 +532,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               ),
               prefixIcon: Icon(
                 Icons.edit_outlined,
-                color: Colors.white.withOpacity(0.4),
+                color: themeProvider.secondaryTextColor,
                 size: 20,
               ),
             ),
@@ -565,14 +548,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildCategorySection() {
+  Widget _buildCategorySection(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Category',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -583,14 +566,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           spacing: 12,
           runSpacing: 12,
           children: _categories.map((category) {
-            return _buildCategoryChip(category);
+            return _buildCategoryChip(category, themeProvider);
           }).toList(),
         ),
       ],
     );
   }
 
-  Widget _buildCategoryChip(Map<String, dynamic> category) {
+  Widget _buildCategoryChip(Map<String, dynamic> category, ThemeProvider themeProvider) {
     final isSelected = _selectedCategory == category['name'];
     
     return GestureDetector(
@@ -617,12 +600,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                   ],
                 )
               : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.05),
+          color: isSelected ? null : themeProvider.glassmorphicColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
                 ? (category['color'] as Color).withOpacity(0.5)
-                : Colors.white.withOpacity(0.1),
+                : themeProvider.borderColor,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -646,7 +629,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
             Text(
               category['name'] as String,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : themeProvider.secondaryTextColor,
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -657,14 +640,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
   
-  Widget _buildCustomCategoryInput() {
+  Widget _buildCustomCategoryInput(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Custom Category',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -673,24 +656,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: themeProvider.glassmorphicColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: themeProvider.borderColor,
               width: 1,
             ),
           ),
           child: TextFormField(
             controller: _customCategoryController,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: themeProvider.textColor,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               hintText: 'e.g., Groceries',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
+                color: themeProvider.secondaryTextColor.withOpacity(0.5),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
@@ -699,7 +682,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               ),
               prefixIcon: Icon(
                 Icons.create_new_folder_outlined,
-                color: Colors.white.withOpacity(0.4),
+                color: themeProvider.secondaryTextColor,
                 size: 20,
               ),
             ),
@@ -715,14 +698,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildDateSelector() {
+  Widget _buildDateSelector(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Date',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -734,10 +717,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: themeProvider.glassmorphicColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+                color: themeProvider.borderColor,
                 width: 1,
               ),
             ),
@@ -745,14 +728,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
               children: [
                 Icon(
                   Icons.calendar_today_outlined,
-                  color: Colors.white.withOpacity(0.4),
+                  color: themeProvider.secondaryTextColor,
                   size: 20,
                 ),
                 const SizedBox(width: 16),
                 Text(
                   '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: themeProvider.textColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -760,7 +743,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 const Spacer(),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: Colors.white.withOpacity(0.3),
+                  color: themeProvider.secondaryTextColor.withOpacity(0.5),
                   size: 16,
                 ),
               ],
@@ -771,14 +754,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildNotesInput() {
+  Widget _buildNotesInput(ThemeProvider themeProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Notes (Optional)',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: themeProvider.secondaryTextColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -787,24 +770,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: themeProvider.glassmorphicColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: themeProvider.borderColor,
               width: 1,
             ),
           ),
           child: TextFormField(
             controller: _notesController,
             maxLines: 4,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: themeProvider.textColor,
               fontSize: 14,
             ),
             decoration: InputDecoration(
               hintText: 'Add additional details...',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.3),
+                color: themeProvider.secondaryTextColor.withOpacity(0.5),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(20),
@@ -815,9 +798,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     );
   }
 
-  Widget _buildSaveButton() {
+  Widget _buildSaveButton(ThemeProvider themeProvider) {
     return GestureDetector(
-      onTap: _isLoading ? null : _saveExpense,
+      onTap: _isLoading ? null : () => _saveExpense(),
       child: Container(
         height: 60,
         decoration: BoxDecoration(
@@ -830,8 +813,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           boxShadow: [
             BoxShadow(
               color: (_isExpense 
-                  ? const Color(0xFFff6b6b) 
-                  : const Color(0xFF4ecdc4)).withOpacity(0.4),
+                  ? themeProvider.destructiveColor
+                  : themeProvider.successColor).withOpacity(0.4),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -864,10 +847,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                     Text(
                       'Save Transaction',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: themeProvider.primaryForegroundColor,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -942,6 +925,8 @@ class _SuccessDialogState extends State<_SuccessDialog>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Dialog(
@@ -959,14 +944,11 @@ class _SuccessDialogState extends State<_SuccessDialog>
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withOpacity(0.1),
-                      Colors.white.withOpacity(0.05),
-                    ],
+                    colors: themeProvider.glassmorphicGradient,
                   ),
                   borderRadius: BorderRadius.circular(32),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
+                    color: themeProvider.borderColor,
                     width: 1.5,
                   ),
                 ),
@@ -979,15 +961,15 @@ class _SuccessDialogState extends State<_SuccessDialog>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: widget.isExpense
-                              ? [const Color(0xFFff6b6b), const Color(0xFFee5a6f)]
-                              : [const Color(0xFF4ecdc4), const Color(0xFF44a4a1)],
+                              ? [themeProvider.destructiveColor, themeProvider.destructiveColor.withOpacity(0.8)]
+                              : [themeProvider.successColor, themeProvider.successColor.withOpacity(0.8)],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: (widget.isExpense
-                                    ? const Color(0xFFff6b6b)
-                                    : const Color(0xFF4ecdc4))
+                                    ? themeProvider.destructiveColor
+                                    : themeProvider.successColor)
                                 .withOpacity(0.4),
                             blurRadius: 20,
                             spreadRadius: 5,
@@ -1001,10 +983,10 @@ class _SuccessDialogState extends State<_SuccessDialog>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                     Text(
                       'Success!',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: themeProvider.textColor,
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -1,
@@ -1014,7 +996,7 @@ class _SuccessDialogState extends State<_SuccessDialog>
                     Text(
                       '${widget.isExpense ? 'Expense' : 'Income'} of ₹${widget.amount}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: themeProvider.secondaryTextColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1023,7 +1005,7 @@ class _SuccessDialogState extends State<_SuccessDialog>
                     Text(
                       'has been added successfully',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: themeProvider.secondaryTextColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),

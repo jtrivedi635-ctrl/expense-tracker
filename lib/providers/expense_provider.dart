@@ -31,11 +31,11 @@ class ExpenseProvider extends ChangeNotifier {
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
-  double get remaining => monthlyBudget - totalExpenses;
+  double get remaining => monthlyBudget + totalIncome - totalExpenses;
 
   double get percentageUsed {
     if (monthlyBudget == 0) return 0;
-    return (totalExpenses / monthlyBudget * 100).clamp(0.0, 100.0);
+    return (totalExpenses / (monthlyBudget + totalIncome) * 100).clamp(0.0, 100.0);
   }
 
   bool get isWarning => percentageUsed >= 80;
@@ -87,8 +87,8 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   // Add expense
-  Future<bool> addExpense(ExpenseModel expense) async {
-    if (expense.isExpense && totalExpenses + expense.amount > monthlyBudget) {
+  Future<bool> addExpense(ExpenseModel expense, {bool force = false}) async {
+    if (expense.isExpense && totalExpenses + expense.amount > monthlyBudget + totalIncome && !force) {
       return false; // Indicates that the budget will be exceeded
     }
     await DatabaseService.addExpense(expense);
