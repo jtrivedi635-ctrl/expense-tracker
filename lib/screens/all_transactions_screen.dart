@@ -313,7 +313,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen>
 
   Widget _buildTransactionsList(ThemeProvider themeProvider) {
     return ValueListenableBuilder<Box<ExpenseModel>>(
-      valueListenable: Hive.box<ExpenseModel>('expenses').listenable(),
+      valueListenable: Hive.box<ExpenseModel>('expense_box').listenable(),
       builder: (context, box, _) {
         if (box.values.isEmpty) {
           return _buildEmptyState(themeProvider);
@@ -464,7 +464,7 @@ class _AllTransactionsScreenState extends State<AllTransactionsScreen>
         );
       },
       onDismissed: (direction) {
-        final box = Hive.box<ExpenseModel>('expenses');
+        final box = Hive.box<ExpenseModel>('expense_box');
         box.delete(transaction.id);
       },
       child: Container(
