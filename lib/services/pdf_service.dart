@@ -89,7 +89,7 @@ class PdfService {
         DateFormat('dd MMM, yyyy').format(e.date),
         e.title,
         e.category,
-        '₹${e.amount.toStringAsFixed(2)}',
+        e.amount.toStringAsFixed(2),
       ]).toList(),
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
@@ -130,7 +130,7 @@ class PdfService {
             ),
           ),
           pw.Text(
-            '₹${total.toStringAsFixed(2)}',
+            total.toStringAsFixed(2),
             style: pw.TextStyle(
               fontSize: 22,
               fontWeight: pw.FontWeight.bold,

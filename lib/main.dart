@@ -24,30 +24,15 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
-        ChangeNotifierProvider(
-          create: (context) => ExpenseProvider()..initialize(),
-        ),
+        ChangeNotifierProvider(create: (context) => ExpenseProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          // Set system UI overlay style based on theme
-          SystemChrome.setSystemUIOverlayStyle(
-            SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness:
-                  themeProvider.isDarkMode ? Brightness.light : Brightness.dark,
-            ),
-          );
-
           return MaterialApp(
             title: 'Expense Tracker',
-            debugShowCheckedModeBanner: false,
             theme: themeProvider.currentTheme,
-            darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.isDarkMode
-                ? ThemeMode.dark
-                : ThemeMode.light,
             home: const SplashScreen(),
+            debugShowCheckedModeBanner: false,
           );
         },
       ),

@@ -22,11 +22,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
   final _amountController = TextEditingController();
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
+  final _customCategoryController = TextEditingController();
 
   String _selectedCategory = 'Food';
   DateTime _selectedDate = DateTime.now();
   bool _isExpense = true;
   bool _isLoading = false;
+  bool _showCustomCategory = false;
 
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Food', 'icon': '🍔', 'color': const Color(0xFFff6b6b)},
@@ -72,6 +74,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
     _amountController.dispose();
     _titleController.dispose();
     _notesController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -115,32 +118,82 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
 
       _triggerHaptic();
       
+      String category = _selectedCategory;
+      if (_selectedCategory == 'Other') {
+        category = _customCategoryController.text.isNotEmpty
+            ? _customCategoryController.text
+            : 'Other';
+      }
+
       // Create expense model
       final expense = ExpenseModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
         amount: double.parse(_amountController.text),
-        category: _selectedCategory,
+        category: category,
         date: _selectedDate,
         isExpense: _isExpense,
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 
       // Save to database via provider
-      await context.read<ExpenseProvider>().addExpense(expense);
-      
-      await Future.delayed(const Duration(milliseconds: 500));
+      final success = await context.read<ExpenseProvider>().addExpense(expense);
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (success) {
+        await Future.delayed(const Duration(milliseconds: 500));
 
-        // Show success and go back
-        _showSuccessDialog();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+
+          // Show success and go back
+          _showSuccessDialog();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          _showBudgetExceededDialog();
+        }
       }
     }
   }
+
+  void _showBudgetExceededDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Budget Exceeded'),
+        content: const Text('This expense will exceed your monthly budget. Are you sure you want to continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final expense = ExpenseModel(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                title: _titleController.text,
+                amount: double.parse(_amountController.text),
+                category: _selectedCategory,
+                date: _selectedDate,
+                isExpense: _isExpense,
+                notes: _notesController.text.isEmpty ? null : _notesController.text,
+              );
+              await context.read<ExpenseProvider>().addExpense(expense);
+              _showSuccessDialog();
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _showSuccessDialog() {
     showDialog(
@@ -206,6 +259,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                               _buildTitleInput(),
                               const SizedBox(height: 24),
                               _buildCategorySection(),
+                              if (_showCustomCategory)
+                                const SizedBox(height: 24),
+                              if (_showCustomCategory)
+                                _buildCustomCategoryInput(),
                               const SizedBox(height: 24),
                               _buildDateSelector(),
                               const SizedBox(height: 24),
@@ -236,7 +293,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           GestureDetector(
             onTap: () {
               _triggerHaptic();
-              Navigator.pop(context);
+              _showExitConfirmationDialog();
             },
             child: Container(
               width: 48,
@@ -280,6 +337,29 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExitConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard Changes?'),
+        content: const Text('Are you sure you want to go back? Any unsaved changes will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text('Discard'),
           ),
         ],
       ),
@@ -518,6 +598,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
         _triggerHaptic();
         setState(() {
           _selectedCategory = category['name'] as String;
+          if (_selectedCategory == 'Other') {
+            _showCustomCategory = true;
+          } else {
+            _showCustomCategory = false;
+          }
         });
       },
       child: AnimatedContainer(
@@ -569,6 +654,64 @@ class _AddExpenseScreenState extends State<AddExpenseScreen>
           ],
         ),
       ),
+    );
+  }
+  
+  Widget _buildCustomCategoryInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Custom Category',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: _customCategoryController,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              hintText: 'e.g., Groceries',
+              hintStyle: TextStyle(
+                color: Colors.white.withOpacity(0.3),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 20,
+              ),
+              prefixIcon: Icon(
+                Icons.create_new_folder_outlined,
+                color: Colors.white.withOpacity(0.4),
+                size: 20,
+              ),
+            ),
+            validator: (value) {
+              if (_selectedCategory == 'Other' && (value == null || value.isEmpty)) {
+                return 'Please enter a category name';
+              }
+              return null;
+            },
+          ),
+        ),
+      ],
     );
   }
 

@@ -11,6 +11,8 @@ import '../models/expense_model.dart';
 import 'add_expense.dart';
 import '../providers/theme_provider.dart';
 import 'settings_screen.dart';
+import 'all_expenses_screen.dart';
+import 'category_wise_expenses_screen.dart';
 
 class PremiumExpenseTracker extends StatefulWidget {
   const PremiumExpenseTracker({super.key});
@@ -470,6 +472,14 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
         }
       },
       {
+        'icon': Icons.category,
+        'label': 'By Category',
+        'color': scheme.tertiary,
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryWiseExpensesScreen()));
+        }
+      },
+      {
         'icon': Icons.download,
         'label': 'Download',
         'color': scheme.secondary,
@@ -550,6 +560,15 @@ class _PremiumExpenseTrackerState extends State<PremiumExpenseTracker>
                       letterSpacing: -0.5,
                     ),
               ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AllExpensesScreen()),
+                );
+              },
+              child: const Text('View All'),
             ),
           ],
         ),

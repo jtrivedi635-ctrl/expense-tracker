@@ -87,10 +87,14 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   // Add expense
-  Future<void> addExpense(ExpenseModel expense) async {
+  Future<bool> addExpense(ExpenseModel expense) async {
+    if (expense.isExpense && totalExpenses + expense.amount > monthlyBudget) {
+      return false; // Indicates that the budget will be exceeded
+    }
     await DatabaseService.addExpense(expense);
     _expenses.add(expense);
     notifyListeners();
+    return true;
   }
 
   // Delete expense
